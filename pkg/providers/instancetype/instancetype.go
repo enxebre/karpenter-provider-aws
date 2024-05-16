@@ -178,6 +178,7 @@ func (p *DefaultProvider) LivenessProbe(req *http.Request) error {
 	return p.pricingProvider.LivenessProbe(req)
 }
 
+// UpdateInstanceTypes
 func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to getInstanceTypeOfferings do not result in cache misses and multiple

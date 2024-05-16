@@ -30,18 +30,56 @@ import (
 )
 
 func main() {
+	// ctx, op := operator.NewOperator(coreoperator.NewOperator())
+	// awsCloudProvider := cloudprovider.New(
+	// 	op.InstanceTypesProvider,
+	// 	op.InstanceProvider,
+	// 	op.EventRecorder,
+	// 	op.GetClient(),
+	// 	op.AMIProvider,
+	// 	op.SecurityGroupProvider,
+	// 	op.SubnetProvider,
+	// )
+	// lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
+	// cloudProvider := metrics.Decorate(awsCloudProvider)
+
+	// op.
+	// 	WithControllers(ctx, corecontrollers.NewControllers(
+	// 		op.Clock,
+	// 		op.GetClient(),
+	// 		state.NewCluster(op.Clock, op.GetClient(), cloudProvider),
+	// 		op.EventRecorder,
+	// 		cloudProvider,
+	// 	)...).
+	// 	WithWebhooks(ctx, corewebhooks.NewWebhooks()...).
+	// 	WithControllers(ctx, controllers.NewControllers(
+	// 		ctx,
+	// 		op.Session,
+	// 		op.Clock,
+	// 		op.GetClient(),
+	// 		op.EventRecorder,
+	// 		op.UnavailableOfferingsCache,
+	// 		cloudProvider,
+	// 		op.SubnetProvider,
+	// 		op.SecurityGroupProvider,
+	// 		op.InstanceProfileProvider,
+	// 		op.InstanceProvider,
+	// 		op.PricingProvider,
+	// 		op.AMIProvider,
+	// 		op.LaunchTemplateProvider,
+	// 		op.InstanceTypesProvider,
+	// 	)...).
+	// 	WithWebhooks(ctx, webhooks.NewWebhooks()...).
+	// 	Start(ctx)
+
 	ctx, op := operator.NewOperator(coreoperator.NewOperator())
-	awsCloudProvider := cloudprovider.New(
+	capiCloudProvider := cloudprovider.CAPINew(
 		op.InstanceTypesProvider,
-		op.InstanceProvider,
 		op.EventRecorder,
 		op.GetClient(),
-		op.AMIProvider,
-		op.SecurityGroupProvider,
-		op.SubnetProvider,
 	)
-	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
-	cloudProvider := metrics.Decorate(awsCloudProvider)
+	lo.Must0(op.AddHealthzCheck("cloud-provider", capiCloudProvider.LivenessProbe))
+	cloudProvider := metrics.Decorate(capiCloudProvider)
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
@@ -60,13 +98,8 @@ func main() {
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
 			cloudProvider,
-			op.SubnetProvider,
-			op.SecurityGroupProvider,
-			op.InstanceProfileProvider,
 			op.InstanceProvider,
 			op.PricingProvider,
-			op.AMIProvider,
-			op.LaunchTemplateProvider,
 			op.InstanceTypesProvider,
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).

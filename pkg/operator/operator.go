@@ -34,8 +34,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -133,29 +131,16 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+
+	// DESIGN: This is written over the aws provider only for dev purposes. A CAPI provider would live in its own repo.
+	// DESIGN: we can discriminate here at runtime so we can have different instance type, pricing implementations for different providers.
+	// DESIGN: We could just vendor any provider in our CAPI provider repo and reuse their instance type/pricing controllers at our convenience
+	// as showed in this code.
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
 		ec2api,
 		*sess.Config.Region,
-	)
-	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.NewResolver(amiProvider)
-	launchTemplateProvider := launchtemplate.NewDefaultProvider(
-		ctx,
-		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
-		ec2api,
-		eks.New(sess),
-		amiResolver,
-		securityGroupProvider,
-		subnetProvider,
-		lo.Must(GetCABundle(ctx, operator.GetConfig())),
-		operator.Elected(),
-		kubeDNSIP,
-		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
 		*sess.Config.Region,
@@ -165,31 +150,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
-	instanceProvider := instance.NewDefaultProvider(
-		ctx,
-		aws.StringValue(sess.Config.Region),
-		ec2api,
-		unavailableOfferingsCache,
-		instanceTypeProvider,
-		subnetProvider,
-		launchTemplateProvider,
-	)
-
 	return ctx, &Operator{
-		Operator:                  operator,
-		Session:                   sess,
-		UnavailableOfferingsCache: unavailableOfferingsCache,
-		EC2API:                    ec2api,
-		SubnetProvider:            subnetProvider,
-		SecurityGroupProvider:     securityGroupProvider,
-		InstanceProfileProvider:   instanceProfileProvider,
-		AMIProvider:               amiProvider,
-		AMIResolver:               amiResolver,
-		VersionProvider:           versionProvider,
-		LaunchTemplateProvider:    launchTemplateProvider,
-		PricingProvider:           pricingProvider,
-		InstanceTypesProvider:     instanceTypeProvider,
-		InstanceProvider:          instanceProvider,
+		Operator:              operator,
+		PricingProvider:       pricingProvider,
+		InstanceTypesProvider: instanceTypeProvider,
 	}
 }
 
